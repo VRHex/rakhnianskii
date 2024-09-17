@@ -147,7 +147,7 @@ function saveUserReferral(userId, ref) {
 }
 
 // Запуск сервера
-const port = process.env.PORT || process.argv[2] || 3002;
+const port = process.env.PORT || 3002;
 console.log(`Используемый порт: ${port}`);
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
