@@ -17,9 +17,9 @@ app.get('/webhook', (req, res) => {
     if (mode && token) {
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
             console.log('WEBHOOK_VERIFIED');
-            res.status(200).send(challenge);
+            return res.status(200).send(challenge);
         } else {
-            res.sendStatus(403);
+            return res.sendStatus(403);
         }
     }
 });
@@ -29,29 +29,25 @@ app.post('/webhook', (req, res) => {
     const body = req.body;
 
     if (body.object === 'page') {
-        // Обработка событий страницы Facebook
-        body.entry.forEach(function(entry) {
+        body.entry.forEach(entry => {
             const messagingEvents = entry.messaging || [];
-            messagingEvents.forEach(function(event) {
-                // Проверка и обработка сообщения
+            messagingEvents.forEach(event => {
                 handleEvent(event);
             });
         });
-        res.status(200).send('EVENT_RECEIVED');
+        return res.status(200).send('EVENT_RECEIVED');
     } else if (body.object === 'instagram') {
-        // Обработка событий Instagram
-        body.entry.forEach(function(entry) {
-            entry.changes.forEach(function(change) {
+        body.entry.forEach(entry => {
+            entry.changes.forEach(change => {
                 if (change.field === 'messages') {
                     const event = change.value;
-                    // Проверка и обработка сообщения
                     handleEvent(event);
                 }
             });
         });
-        res.status(200).send('EVENT_RECEIVED');
+        return res.status(200).send('EVENT_RECEIVED');
     } else {
-        res.sendStatus(404);
+        return res.sendStatus(404);
     }
 });
 
@@ -60,48 +56,19 @@ function handleEvent(event) {
     const senderId = event.sender.id;
 
     // Обработка реферальной информации
-    let referral = null;
-
-    if (event.referral) {
-        referral = event.referral;
-    } else if (event.postback && event.postback.referral) {
-        referral = event.postback.referral;
-    } else if (event.message && event.message.quick_reply && event.message.quick_reply.payload) {
-        referral = { ref: event.message.quick_reply.payload };
-    }
+    let referral = event.referral || 
+                   (event.postback && event.postback.referral) || 
+                   (event.message && event.message.quick_reply && event.message.quick_reply.payload && { ref: event.message.quick_reply.payload });
 
     if (referral && referral.ref) {
         const ref = referral.ref;
         console.log(`Получен ref: ${ref}`);
-        // Сохранение или обработка UTM-метки
         saveUserReferral(senderId, ref);
     }
 
     // Обработка сообщения
     if (event.message) {
-        const message = event.message;
-
-        // Обработка текста сообщения
-        if (message.text) {
-            console.log(`Получено сообщение от пользователя ${senderId}: ${message.text}`);
-            // Логика обработки сообщения
-            // Например, отправка ответа пользователю
-            sendMessage(senderId, { text: `Вы сказали: ${message.text}` });
-        }
-
-        // Обработка вложений
-        if (message.attachments) {
-            message.attachments.forEach(attachment => {
-                console.log(`Получено вложение от пользователя ${senderId}:`, attachment);
-                // Логика обработки вложений
-            });
-        }
-
-        // Обработка быстрых ответов
-        if (message.quick_reply) {
-            console.log(`Получен быстрый ответ от пользователя ${senderId}: ${message.quick_reply.payload}`);
-            // Логика обработки быстрого ответа
-        }
+        handleMessage(senderId, event.message);
     }
 
     // Обработка постбэков
@@ -117,12 +84,30 @@ function handleEvent(event) {
     }
 }
 
+// Функция для обработки сообщений
+function handleMessage(senderId, message) {
+    if (message.text) {
+        console.log(`Получено сообщение от пользователя ${senderId}: ${message.text}`);
+        sendMessage(senderId, { text: `Вы сказали: ${message.text}` });
+    }
+
+    if (message.attachments) {
+        message.attachments.forEach(attachment => {
+            console.log(`Получено вложение от пользователя ${senderId}:`, attachment);
+            // Логика обработки вложений
+        });
+    }
+
+    if (message.quick_reply) {
+        console.log(`Получен быстрый ответ от пользователя ${senderId}: ${message.quick_reply.payload}`);
+        // Логика обработки быстрого ответа
+    }
+}
+
 // Функция для отправки сообщений через Facebook Graph API
 function sendMessage(recipientId, message) {
     const requestBody = {
-        recipient: {
-            id: recipientId
-        },
+        recipient: { id: recipientId },
         message: message
     };
 
@@ -132,23 +117,22 @@ function sendMessage(recipientId, message) {
         method: 'POST',
         json: requestBody
     }, (err, res, body) => {
-        if (!err) {
+        if (!err && res.statusCode === 200) {
             console.log('Сообщение отправлено пользователю', recipientId);
         } else {
-            console.error('Не удалось отправить сообщение:', err);
+            console.error('Не удалось отправить сообщение:', err || body.error);
         }
     });
 }
 
+// Функция для сохранения UTM-меток
 function saveUserReferral(userId, ref) {
-    // Логика сохранения UTM-метки и связывания с пользователем
-    // Например, сохранение в базу данных
     console.log(`Сохраняем UTM-метку для пользователя ${userId}: ${ref}`);
+    // Здесь можно добавить логику сохранения в базу данных
 }
 
 // Запуск сервера
-const port = process.env.PORT || 3002;
-console.log(`Используемый порт: ${port}`);
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
 });
