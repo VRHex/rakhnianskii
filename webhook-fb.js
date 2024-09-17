@@ -136,3 +136,6 @@ const port = process.env.PORT || 3002;
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
 });
+console.log('VERIFY_TOKEN:', process.env.VERIFY_TOKEN);
+console.log('PAGE_ACCESS_TOKEN:', process.env.PAGE_ACCESS_TOKEN);
+console.log('PORT:', process.env.PORT);
