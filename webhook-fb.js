@@ -8,6 +8,13 @@ app.use(express.json());
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN; // Получаем VERIFY_TOKEN из .env
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Получаем PAGE_ACCESS_TOKEN из .env
 
+
+app.get('/test', (req, res) => {
+    res.json({
+        success: true
+    })
+})
+
 // Обработка запроса подтверждения от Facebook
 app.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
@@ -17,9 +24,9 @@ app.get('/webhook', (req, res) => {
     if (mode && token) {
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
             console.log('WEBHOOK_VERIFIED');
-            return res.status(200).send(challenge);
+            res.status(200).send(challenge);
         } else {
-            return res.sendStatus(403);
+            res.sendStatus(403);
         }
     }
 });
@@ -29,25 +36,29 @@ app.post('/webhook', (req, res) => {
     const body = req.body;
 
     if (body.object === 'page') {
-        body.entry.forEach(entry => {
+        // Обработка событий страницы Facebook
+        body.entry.forEach(function(entry) {
             const messagingEvents = entry.messaging || [];
-            messagingEvents.forEach(event => {
+            messagingEvents.forEach(function(event) {
+                // Проверка и обработка сообщения
                 handleEvent(event);
             });
         });
-        return res.status(200).send('EVENT_RECEIVED');
+        res.status(200).send('EVENT_RECEIVED');
     } else if (body.object === 'instagram') {
-        body.entry.forEach(entry => {
-            entry.changes.forEach(change => {
+        // Обработка событий Instagram
+        body.entry.forEach(function(entry) {
+            entry.changes.forEach(function(change) {
                 if (change.field === 'messages') {
                     const event = change.value;
+                    // Проверка и обработка сообщения
                     handleEvent(event);
                 }
             });
         });
-        return res.status(200).send('EVENT_RECEIVED');
+        res.status(200).send('EVENT_RECEIVED');
     } else {
-        return res.sendStatus(404);
+        res.sendStatus(404);
     }
 });
 
@@ -56,19 +67,48 @@ function handleEvent(event) {
     const senderId = event.sender.id;
 
     // Обработка реферальной информации
-    let referral = event.referral || 
-                   (event.postback && event.postback.referral) || 
-                   (event.message && event.message.quick_reply && event.message.quick_reply.payload && { ref: event.message.quick_reply.payload });
+    let referral = null;
+
+    if (event.referral) {
+        referral = event.referral;
+    } else if (event.postback && event.postback.referral) {
+        referral = event.postback.referral;
+    } else if (event.message && event.message.quick_reply && event.message.quick_reply.payload) {
+        referral = { ref: event.message.quick_reply.payload };
+    }
 
     if (referral && referral.ref) {
         const ref = referral.ref;
         console.log(`Получен ref: ${ref}`);
+        // Сохранение или обработка UTM-метки
         saveUserReferral(senderId, ref);
     }
 
     // Обработка сообщения
     if (event.message) {
-        handleMessage(senderId, event.message);
+        const message = event.message;
+
+        // Обработка текста сообщения
+        if (message.text) {
+            console.log(`Получено сообщение от пользователя ${senderId}: ${message.text}`);
+            // Логика обработки сообщения
+            // Например, отправка ответа пользователю
+            sendMessage(senderId, { text: `Вы сказали: ${message.text}` });
+        }
+
+        // Обработка вложений
+        if (message.attachments) {
+            message.attachments.forEach(attachment => {
+                console.log(`Получено вложение от пользователя ${senderId}:`, attachment);
+                // Логика обработки вложений
+            });
+        }
+
+        // Обработка быстрых ответов
+        if (message.quick_reply) {
+            console.log(`Получен быстрый ответ от пользователя ${senderId}: ${message.quick_reply.payload}`);
+            // Логика обработки быстрого ответа
+        }
     }
 
     // Обработка постбэков
@@ -84,30 +124,12 @@ function handleEvent(event) {
     }
 }
 
-// Функция для обработки сообщений
-function handleMessage(senderId, message) {
-    if (message.text) {
-        console.log(`Получено сообщение от пользователя ${senderId}: ${message.text}`);
-        sendMessage(senderId, { text: `Вы сказали: ${message.text}` });
-    }
-
-    if (message.attachments) {
-        message.attachments.forEach(attachment => {
-            console.log(`Получено вложение от пользователя ${senderId}:`, attachment);
-            // Логика обработки вложений
-        });
-    }
-
-    if (message.quick_reply) {
-        console.log(`Получен быстрый ответ от пользователя ${senderId}: ${message.quick_reply.payload}`);
-        // Логика обработки быстрого ответа
-    }
-}
-
 // Функция для отправки сообщений через Facebook Graph API
 function sendMessage(recipientId, message) {
     const requestBody = {
-        recipient: { id: recipientId },
+        recipient: {
+            id: recipientId
+        },
         message: message
     };
 
@@ -117,25 +139,23 @@ function sendMessage(recipientId, message) {
         method: 'POST',
         json: requestBody
     }, (err, res, body) => {
-        if (!err && res.statusCode === 200) {
+        if (!err) {
             console.log('Сообщение отправлено пользователю', recipientId);
         } else {
-            console.error('Не удалось отправить сообщение:', err || body.error);
+            console.error('Не удалось отправить сообщение:', err);
         }
     });
 }
 
-// Функция для сохранения UTM-меток
 function saveUserReferral(userId, ref) {
+    // Логика сохранения UTM-метки и связывания с пользователем
+    // Например, сохранение в базу данных
     console.log(`Сохраняем UTM-метку для пользователя ${userId}: ${ref}`);
-    // Здесь можно добавить логику сохранения в базу данных
 }
 
 // Запуск сервера
-const port = process.env.PORT || 3002;
+const port = process.env.PORT || 3000;
+console.log(`Используемый порт: ${port}`);
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
 });
-console.log('VERIFY_TOKEN:', process.env.VERIFY_TOKEN);
-console.log('PAGE_ACCESS_TOKEN:', process.env.PAGE_ACCESS_TOKEN);
-console.log('PORT:', process.env.PORT);
