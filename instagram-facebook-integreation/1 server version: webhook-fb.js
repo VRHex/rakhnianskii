@@ -1,5 +1,5 @@
 const express = require('express');
-const request = require('request');
+const axios = require('axios');
 require('dotenv').config(); // Подключаем dotenv для работы с переменными окружения
 
 const app = express();
@@ -7,13 +7,6 @@ app.use(express.json());
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN; // Получаем VERIFY_TOKEN из .env
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // Получаем PAGE_ACCESS_TOKEN из .env
-
-
-app.get('/test', (req, res) => {
-    res.json({
-        success: true
-    })
-})
 
 // Обработка запроса подтверждения от Facebook
 app.get('/webhook', (req, res) => {
@@ -28,6 +21,8 @@ app.get('/webhook', (req, res) => {
         } else {
             res.sendStatus(403);
         }
+    } else {
+        res.sendStatus(404);
     }
 });
 
@@ -35,25 +30,12 @@ app.get('/webhook', (req, res) => {
 app.post('/webhook', (req, res) => {
     const body = req.body;
 
-    if (body.object === 'page') {
-        // Обработка событий страницы Facebook
+    if (body.object === 'page' || body.object === 'instagram') {
         body.entry.forEach(function(entry) {
             const messagingEvents = entry.messaging || [];
             messagingEvents.forEach(function(event) {
                 // Проверка и обработка сообщения
                 handleEvent(event);
-            });
-        });
-        res.status(200).send('EVENT_RECEIVED');
-    } else if (body.object === 'instagram') {
-        // Обработка событий Instagram
-        body.entry.forEach(function(entry) {
-            entry.changes.forEach(function(change) {
-                if (change.field === 'messages') {
-                    const event = change.value;
-                    // Проверка и обработка сообщения
-                    handleEvent(event);
-                }
             });
         });
         res.status(200).send('EVENT_RECEIVED');
@@ -124,8 +106,8 @@ function handleEvent(event) {
     }
 }
 
-// Функция для отправки сообщений через Facebook Graph API
-function sendMessage(recipientId, message) {
+// Функция для отправки сообщений через Facebook Graph API с использованием axios
+async function sendMessage(recipientId, message) {
     const requestBody = {
         recipient: {
             id: recipientId
@@ -133,18 +115,18 @@ function sendMessage(recipientId, message) {
         message: message
     };
 
-    request({
-        uri: 'https://graph.facebook.com/v17.0/me/messages',
-        qs: { access_token: PAGE_ACCESS_TOKEN },
-        method: 'POST',
-        json: requestBody
-    }, (err, res, body) => {
-        if (!err) {
-            console.log('Сообщение отправлено пользователю', recipientId);
-        } else {
-            console.error('Не удалось отправить сообщение:', err);
-        }
-    });
+    try {
+        const response = await axios.post(
+            'https://graph.facebook.com/v17.0/me/messages',
+            requestBody,
+            {
+                params: { access_token: PAGE_ACCESS_TOKEN }
+            }
+        );
+        console.log('Сообщение отправлено пользователю', recipientId);
+    } catch (error) {
+        console.error('Не удалось отправить сообщение:', error.response ? error.response.data : error.message);
+    }
 }
 
 function saveUserReferral(userId, ref) {
@@ -154,8 +136,7 @@ function saveUserReferral(userId, ref) {
 }
 
 // Запуск сервера
-const port = process.env.PORT || 3000;
-console.log(`Используемый порт: ${port}`);
+const port = process.env.PORT || 3002;
 app.listen(port, () => {
     console.log(`Сервер запущен на порту ${port}`);
 });
