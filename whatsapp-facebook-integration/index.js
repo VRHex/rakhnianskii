@@ -14,7 +14,7 @@ const accessToken = process.env.ACCESS_TOKEN;
 const pixelId = process.env.PIXEL_ID;
 const dataSetId = process.env.DATA_SET_ID;
 const verifyToken = process.env.VERIFY_TOKEN;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // URL для отправки событий в Facebook Conversions API
 const url = `https://graph.facebook.com/v14.0/${pixelId}/events?access_token=${accessToken}&data_set_id=${dataSetId}`;
