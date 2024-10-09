@@ -105,26 +105,4 @@ function determineAndSendEvent(message, userData) {
   if (message.type === 'text') {
     const messageText = message.text.body.toLowerCase();
 
-    if (messageText.includes('лид')) {
-      eventName = 'Lead';
-    } else if (messageText.includes('заявка')) {
-      eventName = 'SubmitApplication';
-    } else if (messageText.includes('просмотр')) {
-      eventName = 'ViewContent';
-    } else if (messageText.includes('отправленный лид')) {
-      eventName = 'CompleteRegistration';
-    }
-  }
-
-  // Дополнительные параметры custom_data при необходимости
-  const customData = {
-    // Добавьте необходимые параметры custom_data здесь
-  };
-
-  sendEvent(eventName, userData, customData);
-}
-
-// Запуск сервера на указанном порту
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
-});
+   
