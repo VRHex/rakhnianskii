@@ -128,8 +128,3 @@ function determineAndSendEvent(message, userData) {
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
-// Запуск сервера
-const port = process.env.PORT || 3001;
-app.listen(port, () => {
-    console.log(`Сервер запущен на порту ${port}`);
-});
